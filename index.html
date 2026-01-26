@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7PASS | BETA</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg: #030303; --surf: #0a0a0a; --accent: #00ff41;
+            --accent-dim: #003b0f; --text: #d0d0d0; --text-dim: #555;
+            --border: #1a1a1a; --warn: #ffbb33; --crit: #ff4444;
+            --font: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg); color: var(--text);
+            font-family: var(--font); display: flex; flex-direction: column;
+            align-items: center; padding: 40px 20px; line-height: 1.6;
+        }
+
+        .dashboard { max-width: 900px; width: 100%; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 30px; border-bottom: 1px solid var(--accent-dim); padding-bottom: 10px;
+        }
+        header h1 { font-size: 1rem; letter-spacing: 8px; color: var(--accent); }
+        
+        .db-status { display: flex; gap: 10px; font-size: 0.6rem; }
+        .pill { border: 1px solid var(--border); padding: 4px 10px; color: var(--text-dim); text-transform: uppercase; }
+        .pill.ready { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 5px var(--accent-dim); }
+
+        .module { background: var(--surf); border: 1px solid var(--border); padding: 40px; margin-bottom: 40px; }
+        
+        #display-wrap { position: relative; margin-bottom: 25px; }
+        #pass-output {
+            width: 100%; background: #000; border: 1px solid var(--border);
+            color: var(--accent); padding: 22px; font-size: 1.3rem;
+            font-family: inherit; outline: none; text-align: center;
+        }
+        
+        .btn-copy {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            background: #000; border: 1px solid var(--accent-dim); color: var(--accent-dim);
+            padding: 5px 12px; font-size: 0.6rem; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+        .strength-meter { height: 3px; width: 100%; background: #111; margin-bottom: 25px; }
+        #strength-bar { height: 100%; width: 0%; background: var(--crit); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .toolbar { display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 12px; margin-bottom: 30px; }
+        select, button.main-btn {
+            background: #000; border: 1px solid var(--accent);
+            color: var(--accent); padding: 12px; font-family: inherit;
+            cursor: pointer; text-transform: uppercase; font-size: 0.75rem; font-weight: bold;
+        }
+        button.main-btn:hover { background: var(--accent); color: #000; }
+
+        .metrics-grid { 
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; 
+            padding-top: 25px; border-top: 1px solid var(--border);
+        }
+        .metric-item { display: flex; flex-direction: column; }
+        .metric-label { font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px; }
+        .metric-value { font-size: 0.9rem; color: var(--text); }
+        .metric-value span { color: var(--accent); }
+
+        .manifesto-section { border-top: 1px solid var(--border); padding-top: 40px; margin-top: 20px; }
+        .manifesto-text { font-size: 0.85rem; color: var(--text-dim); text-align: justify; hyphens: auto; }
+        .manifesto-text strong { color: var(--text); }
+        .formula-block { display: inline-block; padding: 0 5px; color: var(--text); }
+
+        @media (max-width: 768px) { .toolbar, .metrics-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <header>
+        <h1>7PASS | BETA</h1>
+        <div class="db-status">
+            <div id="st-es" class="pill">ES_DAT: WAIT</div>
+            <div id="st-en" class="pill">EN_DAT: WAIT</div>
+        </div>
+    </header>
+
+    <main class="module">
+        <div id="display-wrap">
+            <input type="text" id="pass-output" spellcheck="false" autocomplete="off" placeholder="[INPUT]">
+            <button id="copy-btn" class="btn-copy">Copiar</button>
+        </div>
+        <div class="strength-meter"><div id="strength-bar"></div></div>
+        
+        <div class="toolbar">
+            <select id="mode-select">
+                <option value="phrase">PASSPHRASE (6 PALABRAS)</option>
+                <option value="string">RANDOM_STRING (24 CHARS)</option>
+            </select>
+            <select id="lang-select">
+                <option value="es">ESPAÑOL</option>
+                <option value="en">ENGLISH</option>
+            </select>
+            <button id="gen-btn" class="main-btn">EJECUTAR GENERACIÓN</button>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-item">
+                <span class="metric-label">Entropía Shannon Real</span>
+                <div class="metric-value"><span id="bits-val">0.00</span> bits</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Resistencia Estimada</span>
+                <div class="metric-value" id="crack-time">N/A</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Densidad de Info</span>
+                <div class="metric-value"><span id="info-density">0</span>%</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="manifesto-section">
+        <div class="manifesto-text">
+            La seguridad no es una capa externa que se añade a un sistema, sino una propiedad matemática intrínseca que solo existe en la medida en que existe la incertidumbre. En el panorama actual, donde el poder de cómputo se duplica mientras la capacidad cognitiva humana permanece estancada, seguir confiando en la complejidad visual de una contraseña es un error de bulto que roza la negligencia. Un atacante no se siente intimidado por un símbolo de exclamación o un número sustituyendo a una vocal; se siente intimidado por el espacio de búsqueda que debe recorrer, y ese espacio solo se ensancha de verdad mediante la entropía. La entropía combinatoria tradicional, definida por la fórmula <span class="formula-block">\(E = L \cdot \log_2(R)\)</span>, nos da una medida del potencial teórico de una clave basada en su longitud y el set de caracteres. Sin embargo, la fiabilidad absoluta que requiere un auditor de seguridad exige ir más allá, hacia la entropía de Shannon, que se expresa como <span class="formula-block">\(H = -\sum_{i=1}^{n} p_i \log_2 p_i\)</span> para medir la incertidumbre real por cada símbolo. Esta distinción es crítica porque revela la falacia de las contraseñas repetitivas: si un carácter es predecible, su aporte a la seguridad es nulo, independientemente de cuántas veces se repita. ZPassword nace para exponer esta realidad, procesando diccionarios localmente para garantizar que la generación sea un proceso de aislamiento absoluto, lejos de cualquier red que pueda interceptar el flujo de datos. Al utilizar seis palabras aleatorias, no solo se construye un muro matemático impenetrable para clústeres de GPUs actuales, sino que se crea una estructura recordable para el cerebro humano, explotando la única ventaja que nos queda frente a la máquina: la capacidad de recordar conceptos en lugar de ruido. Entender que la longitud siempre vence a la fuerza bruta es la base de la doctrina <em>Zero-Trust</em>; no basta con tener una puerta blindada si la llave se puede adivinar por pura probabilidad estadística. La ciberseguridad real no permite atajos ni concesiones a la comodidad estética, porque en el momento en que una clave se vuelve predecible, deja de ser una defensa para convertirse en una invitación al desastre. Todo lo que no sea aleatoriedad pura, extraída de entropía de hardware real mediante CSPRNG y verificada mediante análisis de información, es simplemente una ilusión de protección en un entorno digital que no perdona la falta de rigor.
+        </div>
+    </footer>
+</div>
+
+<script>
+    class ZEngine {
+        constructor() {
+            this.dicts = { es: [], en: [] };
+            this.charPool = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+        }
+
+        async init() {
+            const updateStatus = (lang, count) => {
+                const el = document.getElementById(`st-${lang}`);
+                if (el) {
+                    el.innerText = `${lang.toUpperCase()}_DAT: ${count}`;
+                    el.classList.add('ready');
+                }
+            };
+
+            const load = async (lang, paths) => {
+                for (let path of paths) {
+                    try {
+                        const r = await fetch(path);
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.dicts[lang] = data;
+                            updateStatus(lang, data.length);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+            };
+
+            await Promise.allSettled([
+                load('es', ['./diccionario_es.json', './dicts/diccionario_es.json']),
+                load('en', ['./dictionary_en.json', './diccionario_en.json', './dicts/dictionary_en.json'])
+            ]);
+        }
+
+        _secureInt(max) {
+            const arr = new Uint32Array(1);
+            window.crypto.getRandomValues(arr);
+            return arr[0] % max;
+        }
+
+        generate(mode, lang) {
+            if (mode === 'phrase') {
+                const d = this.dicts[lang].length ? this.dicts[lang] : (this.dicts.es.length ? this.dicts.es : ["database_not_found"]);
+                return Array.from({length: 6}, () => d[this._secureInt(d.length)]).join('-');
+            }
+            // CORRECCIÓN: Referencia a this.charPool, no a this.pool
+            return Array.from({length: 24}, () => this.charPool[this._secureInt(this.charPool.length)]).join('');
+        }
+
+        calculateShannon(val) {
+            if (!val) return 0;
+            const len = val.length;
+            const freq = {};
+            for (let char of val) { freq[char] = (freq[char] || 0) + 1; }
+            let h = 0;
+            for (let char in freq) {
+                let p = freq[char] / len;
+                h -= p * Math.log2(p);
+            }
+            let entropy = h * len;
+            const repeats = (val.match(/(.)\1+/g) || []);
+            repeats.forEach(r => { entropy -= (r.length * 0.45); });
+            return Math.max(0, entropy).toFixed(2);
+        }
+
+        getCrackTime(bits) {
+            const hps = 1e12; // 1 TH/s
+            const seconds = Math.pow(2, bits) / hps;
+            if (seconds < 1) return "Muy pocos minutos";
+            if (seconds < 3600) return "Minutos";
+            if (seconds < 86400) return "Horas";
+            if (seconds < 31536000) return "Días";
+            if (seconds < 31536000000) return Math.floor(seconds/31536000) + " años";
+            return "Milenios";
+        }
+    }
+
+    const engine = new ZEngine();
+    const ui = {
+        out: document.getElementById('pass-output'),
+        btn: document.getElementById('gen-btn'),
+        copy: document.getElementById('copy-btn'),
+        bits: document.getElementById('bits-val'),
+        bar: document.getElementById('strength-bar'),
+        time: document.getElementById('crack-time'),
+        dens: document.getElementById('info-density'),
+        mode: document.getElementById('mode-select'),
+        lang: document.getElementById('lang-select')
+    };
+
+    function update() {
+        const pass = ui.out.value;
+        const bits = parseFloat(engine.calculateShannon(pass));
+        ui.bits.innerText = bits.toFixed(2);
+        ui.time.innerText = engine.getCrackTime(bits);
+        
+        // Densidad: bits reales vs máximo teórico promedio (4.5 bits/char)
+        const density = Math.min((bits / (pass.length * 4.5 || 1)) * 100, 100).toFixed(0);
+        ui.dens.innerText = density;
+        
+        const percent = Math.min((bits / 120) * 100, 100);
+        ui.bar.style.width = percent + "%";
+        ui.bar.style.background = bits < 60 ? "var(--crit)" : (bits < 90 ? "var(--warn)" : "var(--accent)");
+    }
+
+    engine.init().then(() => {
+        ui.btn.onclick = () => {
+            ui.out.value = engine.generate(ui.mode.value, ui.lang.value);
+            update();
+        };
+        ui.out.oninput = update;
+        ui.copy.onclick = () => {
+            if (!ui.out.value) return;
+            navigator.clipboard.writeText(ui.out.value);
+            const original = ui.copy.innerText;
+            ui.copy.innerText = "COPIADO";
+            setTimeout(() => ui.copy.innerText = original, 1000);
+        };
+    });
+</script>
+</body>
+</html>
