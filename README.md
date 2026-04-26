@@ -1,2 +1,2 @@
 # 7Pass
-Password generator.
+URL: https://7ekiero.github.io/7Pass/
